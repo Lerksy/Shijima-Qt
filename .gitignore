@@ -68,3 +68,11 @@ DefaultMascot.cc
 !/.images/
 !/.images/*.jpg
 !/.images/*.png
+!/CMakeLists.txt
+!/CMakePresets.json
+!/vcpkg.json
+!/cmake/
+!/cmake/*.cmake
+!/cmake/*/
+!/cmake/*/CMakeLists.txt
+!/cmake/*.py

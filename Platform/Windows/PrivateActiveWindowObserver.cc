@@ -18,6 +18,7 @@
 
 #include "PrivateActiveWindowObserver.hpp"
 #include <windows.h>
+#include <process.h>
 #include <iostream>
 
 namespace Platform {

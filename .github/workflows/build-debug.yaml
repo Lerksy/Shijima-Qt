@@ -1,155 +1,96 @@
-name: Build debug
+name: Build with CMake
 
 on:
   push:
     branches: [main]
   pull_request:
     types: [opened, synchronize, reopened]
+  workflow_dispatch:
 
 jobs:
-  build-windows:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: 'recursive'
-      - name: Fetch full history for Shijima submodules
-        env:
-          BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
-        run: |
-          git fetch --unshallow origin $BRANCH_NAME
-          pushd libshijima
-          git fetch --unshallow origin main
-          echo "libshijima: $(git rev-list HEAD --count) commits"
-          popd
-      - name: Cache Docker image
-        id: cache-docker
-        uses: actions/cache@v4
-        with:
-          path: shijima-qt-dev.tar.gz
-          key: docker-fedora-42-qt6-mingw
-      - name: Build Docker image
-        if: steps.cache-docker.outputs.cache-hit != 'true'
-        run: |
-          pushd dev-docker
-          docker build -t shijima-qt-dev .
-          docker save shijima-qt-dev | gzip > ../shijima-qt-dev.tar.gz
-          popd
-      - name: Import Docker image
-        if: steps.cache-docker.outputs.cache-hit == 'true'
-        run: |
-          gunzip -c < shijima-qt-dev.tar.gz | docker load
-      - name: Build Windows x86_64 debug build
-        run: |
-          docker run -e CONFIG=debug --rm -v "$(pwd)":/work shijima-qt-dev bash -c \
-            'mingw64-make clean && mingw64-make -j$(nproc)'
-      - name: Archive Windows x86_64 debug build
-        uses: actions/upload-artifact@v4
-        with:
-          name: debug-windows-x86_64
-          path: publish/Windows/debug/shijima-qt.exe
-          retention-days: 1
-  build-linux:
+  build:
     runs-on: ${{ matrix.runner }}
     strategy:
+      fail-fast: false
       matrix:
-        runner: [ ubuntu-24.04-arm, ubuntu-22.04 ]
+        runner: [windows-2022, ubuntu-22.04, ubuntu-24.04-arm, macos-14]
+        config: [Debug, Release]
     steps:
       - uses: actions/checkout@v4
         with:
-          submodules: 'recursive'
-      - name: Fetch full history for Shijima submodules
-        env:
-          BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
-        run: |
-          git fetch --unshallow origin $BRANCH_NAME
-          pushd libshijima
-          git fetch --unshallow origin main
-          echo "libshijima: $(git rev-list HEAD --count) commits"
-          popd
-      - uses: actions/setup-node@v4
+          submodules: recursive
+      - uses: actions/setup-python@v5
         with:
-          node-version: 20
+          python-version: '3.12'
+      - name: Install CMake and Ninja
+        run: python -m pip install 'cmake>=3.24,<4' ninja
+      - name: Set up MSVC
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+      - name: Set up vcpkg
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $baseline = (Get-Content vcpkg.json | ConvertFrom-Json).'builtin-baseline'
+          $vcpkgPath = Join-Path $env:RUNNER_TEMP vcpkg
+          git init $vcpkgPath
+          git -C $vcpkgPath remote add origin https://github.com/microsoft/vcpkg.git
+          git -C $vcpkgPath fetch --depth 1 origin $baseline
+          git -C $vcpkgPath checkout FETCH_HEAD
+          & "$vcpkgPath/bootstrap-vcpkg.bat" -disableMetrics
+          "CMAKE_TOOLCHAIN_FILE=$vcpkgPath/scripts/buildsystems/vcpkg.cmake" >> $env:GITHUB_ENV
+          "VCPKG_ROOT=$vcpkgPath" >> $env:GITHUB_ENV
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libarchive-dev libx11-dev libbz2-dev liblzma-dev zlib1g-dev libxcb-cursor0 libgl1-mesa-dev
+      - name: Install macOS dependencies
+        if: runner.os == 'macOS'
+        run: brew install libarchive
       - name: Install Qt6
         uses: jdpurcell/install-qt-action@v5
         with:
           use-naqt: true
           version: '6.8.2'
-          host: ${{ (matrix.runner == 'ubuntu-24.04-arm') && 'linux_arm64' || 'linux' }}
-          target: 'desktop'
-          arch: ${{ (matrix.runner == 'ubuntu-24.04-arm') && 'linux_gcc_arm64' || 'linux_gcc_64' }}
-          modules: 'qtmultimedia'
+          host: ${{ (matrix.runner == 'ubuntu-24.04-arm') && 'linux_arm64' || runner.os == 'Windows' && 'windows' || runner.os == 'macOS' && 'mac' || 'linux' }}
+          target: desktop
+          arch: ${{ runner.os == 'Windows' && 'win64_msvc2022_64' || runner.os == 'macOS' && 'clang_64' || matrix.runner == 'ubuntu-24.04-arm' && 'linux_gcc_arm64' || 'linux_gcc_64' }}
+          modules: qtmultimedia
           cache: true
-      - name: Install build dependencies
+      - name: Configure
+        shell: bash
         run: |
-          sudo apt-get install -y libxcb-cursor0 libarchive-dev libwayland-dev wayland-protocols
-      - name: Build Linux debug build
-        env:
-          CONFIG: debug
+          prefix="$QT_ROOT_DIR"
+          if [ "$RUNNER_OS" = macOS ]; then
+            prefix="$prefix;$(brew --prefix libarchive)"
+          fi
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=${{ matrix.config }} \
+            -DCMAKE_PREFIX_PATH="$prefix" -DSHIJIMA_DEPLOY_QT=ON
+      - name: Build
+        run: cmake --build build --parallel 4
+      - name: Install
+        run: cmake --install build --prefix "${{ github.workspace }}/publish"
+      - name: Check executable startup
+        shell: python
         run: |
-          make clean
-          make -j$(nproc)
-      - name: Archive Linux debug build
+          import pathlib
+          import subprocess
+          import sys
+          if sys.platform == 'win32':
+              executable = pathlib.Path('publish/bin/shijima-qt.exe')
+          elif sys.platform == 'darwin':
+              executable = pathlib.Path('publish/shijima-qt.app/Contents/MacOS/shijima-qt')
+          else:
+              executable = pathlib.Path('publish/bin/shijima-qt')
+          # An invalid command exits 1. Loader failures, signals and crashes do not.
+          result = subprocess.run([str(executable.resolve()), '--quiet', 'cmake-smoke-invalid-command'], timeout=30)
+          assert result.returncode == 1, result.returncode
+      - name: Archive build
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ (matrix.runner == 'ubuntu-24.04-arm') && 'debug-linux-arm64' || 'debug-linux-x86_64' }}
-          path: |
-            publish/Linux/debug/shijima-qt
-            publish/Linux/debug/libunarr.so.1
+          name: cmake-${{ matrix.runner }}-${{ matrix.config }}
+          path: publish
           retention-days: 1
-  build-macos:
-    runs-on: macos-14
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: 'recursive'
-      - name: Fetch full history for Shijima submodules
-        env:
-          BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
-        run: |
-          git fetch --unshallow origin $BRANCH_NAME
-          pushd libshijima
-          git fetch --unshallow origin main
-          echo "libshijima: $(git rev-list HEAD --count) commits"
-          popd
-      - name: Temporarily let gtar run as root
-        run: |
-          sudo chown 0:0 /opt/homebrew/bin/gtar
-          sudo chmod u+s /opt/homebrew/bin/gtar
-      - name: Cache Qt6
-        id: cache-qt6
-        uses: actions/cache@v4
-        with:
-          path: /opt/local
-          key: macos-14-macports-qt6
-      - name: Revoke gtar's root permissions
-        run: |
-          sudo chmod u-s /opt/homebrew/bin/gtar
-      - name: Install Qt6
-        if: steps.cache-qt6.outputs.cache-hit != 'true'
-        run: |
-          wget --no-verbose https://github.com/macports/macports-base/releases/download/v2.10.5/MacPorts-2.10.5-14-Sonoma.pkg
-          sudo installer -pkg MacPorts-2.10.5-14-Sonoma.pkg -target /
-          export PATH=/opt/local/bin:/opt/local/sbin:$PATH
-          yes | sudo port install qt6-qtbase qt6-qtmultimedia pkgconfig libarchive
-          sudo rm -rf /opt/local/var/macports/build/*
-          sudo rm -rf /opt/local/var/macports/distfiles/*
-      - name: Expose MacPorts tools
-        run: |
-          echo "PATH=/opt/local/bin:/opt/local/sbin:$PATH" >> $GITHUB_ENV
-      - name: Build macOS arm64 debug build
-        env:
-          CONFIG: debug
-        run: |
-          make clean
-          make -j6
-      - name: Archive macOS arm64 debug build
-        uses: actions/upload-artifact@v4
-        with:
-          name: debug-macos-arm64
-          path: publish/macOS/debug/shijima-qt
-          retention-days: 1
-      - name: Temporarily let gtar run as root
-        run: |
-          sudo chown 0:0 /opt/homebrew/bin/gtar
-          sudo chmod u+s /opt/homebrew/bin/gtar
