@@ -1,25 +1,7 @@
 # The pinned upstream builds use GCC-only flags and generate files with Bash
 # inside their source trees. Define their targets here so the submodules stay
 # unmodified and all generators/toolchains use the same build graph.
-set(shijima_root "${PROJECT_SOURCE_DIR}/libshijima")
 set(finder_root "${PROJECT_SOURCE_DIR}/libshimejifinder")
-
-set(shijima_sources
-    action/animate.cc action/animation.cc action/base.cc action/breed.cc
-    action/dragged.cc action/fall.cc action/instant.cc action/interact.cc
-    action/jump.cc action/look.cc action/move.cc action/movewithturn.cc
-    action/offset.cc action/reference.cc action/resist.cc action/scanmove.cc
-    action/select.cc action/selfdestruct.cc action/sequence.cc action/stay.cc
-    action/transform.cc action/turn.cc behavior/base.cc behavior/list.cc
-    behavior/manager.cc broadcast/client.cc broadcast/interaction.cc
-    broadcast/manager.cc broadcast/server.cc mascot/factory.cc mascot/manager.cc
-    mascot/state.cc scripting/duktape/duktape.cc scripting/context.cc
-    scripting/variables.cc animation.cc hotspot.cc log.cc parser.cc translator.cc
-)
-list(TRANSFORM shijima_sources PREPEND "${shijima_root}/shijima/")
-add_library(shijima STATIC ${shijima_sources})
-target_include_directories(shijima PUBLIC "${shijima_root}")
-target_compile_definitions(shijima PUBLIC SHIJIMA_DUK_STATIC_BUILD)
 
 # Keep unarr static: no platform-specific DLL naming/copying or runtime RPATH
 # is needed for this bundled dependency. Its own install rules are excluded.

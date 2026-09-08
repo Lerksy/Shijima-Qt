@@ -41,7 +41,7 @@ static QJsonObject mascotToObject(ShijimaWidget *widget) {
     obj["id"] = widget->mascotId();
     obj["data_id"] = widget->mascotData()->id();
     obj["name"] = widget->mascotData()->name();
-    obj["anchor"] = vecToObject(widget->mascot().state->anchor);
+    obj["anchor"] = vecToObject(widget->mascot().get_state()->anchor);
     auto activeBehavior = widget->mascot().active_behavior();
     if (activeBehavior != nullptr) {
         obj["active_behavior"] = QString::fromStdString(activeBehavior->name);
@@ -77,7 +77,7 @@ static void applyObjectToWidget(QJsonObject &object, ShijimaWidget *widget) {
     if (auto anchor = valueToVec(object.take("anchor"));
         !std::isnan(anchor.x))
     {
-        widget->mascot().state->anchor = anchor;
+        widget->mascot().get_state()->anchor = anchor;
     }
     if (auto value = object.take("behavior"); value.isString()) {
         auto str = value.toString().toStdString();
@@ -129,8 +129,8 @@ static bool selectorEval(ShijimaWidget *mascot, std::string const& selector) {
     }
     bool eval;
     try {
-        mascot->mascot().script_ctx->state = mascot->mascot().state;
-        eval = mascot->mascot().script_ctx->eval_bool(selector);
+        mascot->mascot().get_script_ctx()->state = mascot->mascot().get_state();
+        eval = mascot->mascot().get_script_ctx()->eval_bool(selector);
     }
     catch (std::exception &ex) {
         std::cerr << "selector eval failed: " << ex.what() << std::endl;
@@ -139,8 +139,8 @@ static bool selectorEval(ShijimaWidget *mascot, std::string const& selector) {
     return eval;
 }
 
-ShijimaHttpApi::ShijimaHttpApi(ShijimaManager *manager): m_server(new Server),
-    m_thread(nullptr), m_manager(manager), m_host(""), m_port(-1)
+ShijimaHttpApi::ShijimaHttpApi(ShijimaManager *manager) : m_server(new Server),
+                                                          m_manager(manager)
 {
     m_server->Get("/shijima/api/v1/mascots",
         [this](Request const& req, Response &res)
@@ -366,13 +366,14 @@ ShijimaHttpApi::ShijimaHttpApi(ShijimaManager *manager): m_server(new Server),
     });
 }
 
-void ShijimaHttpApi::start(std::string const& host, int port) {
+void ShijimaHttpApi::start(std::string const &host, int port) {
     stop();
     m_host = host;
     m_port = port;
-    m_thread = new std::thread { [this, host, port](){
-        m_server->listen(host, port);
-    } };
+    m_thread = std::make_unique<std::thread>(
+        [this, host, port]() {
+            m_server->listen(host, port);
+        });
 }
 
 bool ShijimaHttpApi::running() {
@@ -391,14 +392,11 @@ void ShijimaHttpApi::stop() {
     if (m_server->is_running()) {
         m_server->stop();
     }
-    if (m_thread != nullptr) {
+    if (m_thread && m_thread->joinable()) {
         m_thread->join();
-        delete m_thread;
-        m_thread = nullptr;
     }
 }
 
 ShijimaHttpApi::~ShijimaHttpApi() {
     stop();
-    delete m_server;
 }

@@ -20,7 +20,7 @@
 #include <QDir>
 #include <QStandardPaths>
 #include <QMessageBox>
-#include <shijima/log.hpp>
+#include <libshijima/shijima/log.hpp>
 #include "Platform/Platform.hpp"
 #include "ShijimaManager.hpp"
 #include "AssetLoader.hpp"

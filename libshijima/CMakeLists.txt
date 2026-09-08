@@ -1,0 +1,97 @@
+cmake_minimum_required(VERSION 3.14)
+project(shijima)
+
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+find_package(pugixml)
+
+if(NOT DEFINED CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE "Debug")
+endif()
+
+option(SHIJIMA_BUILD_EXAMPLES "Build shijima examples" OFF)
+
+if(CMAKE_BUILD_TYPE EQUAL "Release")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -DSHIJIMA_DUK_STATIC_BUILD")
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+else()
+    if(NOT MSVC)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")
+    endif ()
+endif()
+
+if(NOT MSVC)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror -Wpedantic")
+endif()
+
+add_library(
+        ${PROJECT_NAME}
+    shijima/action/animate.cc
+    shijima/action/animation.cc
+    shijima/action/base.cc
+    shijima/action/breed.cc
+    shijima/action/breedjump.cc
+    shijima/action/breedmove.cc
+    shijima/action/complexjump.cc
+    shijima/action/complexmove.cc
+    shijima/action/dragged.cc
+    shijima/action/fall.cc
+    shijima/action/instant.cc
+    shijima/action/interact.cc
+    shijima/action/jump.cc
+    shijima/action/look.cc
+    shijima/action/move.cc
+    shijima/action/movewithturn.cc
+    shijima/action/mute.cc
+    shijima/action/offset.cc
+    shijima/action/reference.cc
+    shijima/action/resist.cc
+    shijima/action/scaninteract.cc
+    shijima/action/scanjump.cc
+    shijima/action/scanmove.cc
+    shijima/action/select.cc
+    shijima/action/selfdestruct.cc
+    shijima/action/sequence.cc
+    shijima/action/stay.cc
+    shijima/action/transform.cc
+    shijima/action/turn.cc
+    shijima/behavior/base.cc
+    shijima/behavior/list.cc
+    shijima/behavior/manager.cc
+    shijima/broadcast/client.cc
+    shijima/broadcast/interaction.cc
+    shijima/broadcast/manager.cc
+    shijima/broadcast/server.cc
+    shijima/mascot/factory.cc
+    shijima/mascot/manager.cc
+    shijima/mascot/state.cc
+    shijima/scripting/duktape/duktape.cc
+    shijima/scripting/condition.cc
+    shijima/scripting/context.cc
+    shijima/scripting/variables.cc
+    shijima/animation.cc
+    shijima/hotspot.cc
+    shijima/log.cc
+    shijima/parser.cc
+    shijima/parser_error.cc
+    shijima/translator.cc
+)
+
+target_include_directories(${PROJECT_NAME} PUBLIC shijima)
+
+target_link_libraries(${PROJECT_NAME} PUBLIC pugixml::pugixml)
+
+if(SHIJIMA_BUILD_EXAMPLES)
+    find_package(SDL2 REQUIRED)
+    find_package(SDL2_image REQUIRED)
+    include_directories(${SDL2_INCLUDE_DIRS})
+
+    add_executable(shijima-sandbox main.cc)
+    add_dependencies(shijima-sandbox shijima)
+    target_link_libraries(shijima-sandbox shijima SDL2_image::SDL2_image ${SDL2_LIBRARIES})
+
+    add_custom_command(TARGET shijima-sandbox POST_BUILD
+        COMMAND "$<$<CONFIG:Release>:${CMAKE_STRIP};shijima-sandbox>"
+        COMMAND_EXPAND_LISTS)
+endif()

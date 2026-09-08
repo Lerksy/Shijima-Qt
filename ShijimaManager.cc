@@ -40,7 +40,7 @@
 #include "ShijimaWidget.hpp"
 #include <QDirIterator>
 #include <QDesktopServices>
-#include <shijima/mascot/factory.hpp>
+#include <mascot/factory.hpp>
 #include <shimejifinder/analyze.hpp>
 #include <QStandardPaths>
 #include "ForcedProgressDialog.hpp"
@@ -1002,13 +1002,13 @@ void ShijimaManager::tick() {
         }
         shimeji->tick();
         auto &mascot = shimeji->mascot();
-        auto &breedRequest = mascot.state->breed_request;
-        if (mascot.state->dragging && !windowedMode()) {
-            auto oldScreen = m_reverseEnv[mascot.state->env.get()];
+        auto &breedRequest = mascot.get_state()->breed_request;
+        if (mascot.get_state()->dragging && !windowedMode()) {
+            auto oldScreen = m_reverseEnv[mascot.get_state()->env.get()];
             auto newScreen = QGuiApplication::screenAt(QPoint {
-                (int)mascot.state->anchor.x, (int)mascot.state->anchor.y });
+                (int)mascot.get_state()->anchor.x, (int)mascot.get_state()->anchor.y });
             if (newScreen != nullptr && oldScreen != newScreen) {
-                mascot.state->env = m_env[newScreen];
+                mascot.get_state()->env = m_env[newScreen];
             }
         }
         if (breedRequest.available) {
@@ -1081,7 +1081,7 @@ ShijimaWidget *ShijimaManager::spawn(std::string const& name) {
     updateEnvironment(screen);
     auto &env = m_env[screen];
     auto product = m_factory.spawn(name, {});
-    product.manager->state->env = env;
+    product.manager->get_state()->env = env;
     product.manager->reset_position();
     ShijimaWidget *shimeji = new ShijimaWidget(
         m_loadedMascots[QString::fromStdString(name)],

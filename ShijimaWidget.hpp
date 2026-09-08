@@ -23,8 +23,8 @@
 #include <QRegion>
 #include "Asset.hpp"
 #include "SoundEffectManager.hpp"
-#include <shijima/mascot/manager.hpp>
-#include <shijima/mascot/environment.hpp>
+#include <mascot/manager.hpp>
+#include <mascot/environment.hpp>
 #include "PlatformWidget.hpp"
 #include "MascotData.hpp"
 
@@ -46,7 +46,7 @@ public:
         QWidget *parent = nullptr);
     void tick();
     bool pointInside(QPoint const& point);
-    int mascotId() { return m_mascotId; }
+    int mascotId() const { return m_mascotId; }
     void showInspector();
     void markForDeletion() { m_markedForDeletion = true; }
     bool inspectorVisible();
@@ -55,10 +55,11 @@ public:
         return *m_mascot;
     }
     void setEnv(std::shared_ptr<shijima::mascot::environment> env) {
-        m_mascot->state->env = env;
+        auto state = m_mascot->get_state();
+        state->env = env;
     }
     std::shared_ptr<shijima::mascot::environment> env() {
-        return m_mascot->state->env; 
+        return m_mascot->get_state()->env;
     }
     MascotData *mascotData() {
         return m_data;
@@ -66,7 +67,7 @@ public:
     QString const& mascotName() {
         return m_data->name();
     }
-    ~ShijimaWidget();
+    ~ShijimaWidget() override;
 protected:
     void paintEvent(QPaintEvent *) override;
     void mousePressEvent(QMouseEvent *) override;

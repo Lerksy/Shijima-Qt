@@ -39,6 +39,7 @@ endif()
 
 include(GNUInstallDirs)
 include(cmake/Resources.cmake)
+add_subdirectory(libshijima)
 add_subdirectory(cmake/dependencies)
 
 qt_add_executable(shijima-qt

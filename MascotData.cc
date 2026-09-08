@@ -23,7 +23,7 @@
 #include <QDir>
 #include "DefaultMascot.hpp"
 #include <stdexcept>
-#include <shijima/parser.hpp>
+#include <parser.hpp>
 
 static QString readFile(QString const& file) {
     QFile f { file };

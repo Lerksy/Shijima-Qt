@@ -20,8 +20,8 @@
 
 #include <QMainWindow>
 #include <QString>
-#include <shijima/mascot/manager.hpp>
-#include <shijima/mascot/factory.hpp>
+#include <mascot/manager.hpp>
+#include <mascot/factory.hpp>
 #include <vector>
 #include <QMap>
 #include <QListWidgetItem>

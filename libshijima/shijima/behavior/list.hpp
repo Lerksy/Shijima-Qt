@@ -1,0 +1,49 @@
+#pragma once
+
+// 
+// libshijima - C++ library for shimeji desktop mascots
+// Copyright (C) 2024-2025 pixelomer
+// 
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+// 
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+// 
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+// 
+
+#include "base.hpp"
+#include <vector>
+#include <memory>
+#include <scripting/context.hpp>
+#include <scripting/condition.hpp>
+
+namespace shijima {
+namespace behavior {
+
+class list {
+public:
+    std::vector<std::shared_ptr<base>> children;
+    scripting::condition condition;
+    std::vector<list> sublists;
+
+    std::vector<std::shared_ptr<base>> flatten_unconditional() const;
+
+    std::vector<std::shared_ptr<base>> flatten(scripting::context &ctx) const;
+
+    // Does not follow base::next_list
+    std::shared_ptr<base> find(std::string const& name, bool throws = true) const;
+
+    list(scripting::condition const& cond);
+    list();
+    list(std::vector<std::shared_ptr<base>> const& children);
+};
+
+}
+}
