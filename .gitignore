@@ -62,7 +62,6 @@ DefaultMascot.cc
 !/DefaultMascot/behaviors.xml
 !/DefaultMascot/img/
 !/DefaultMascot/img/shime*.png
-!/cpp-httplib
 !/HTTP-API.md
 !/LICENSE
 !/.images/
@@ -70,7 +69,9 @@ DefaultMascot.cc
 !/.images/*.png
 !/CMakeLists.txt
 !/CMakePresets.json
-!/vcpkg.json
+!/conanfile.py
+!/conandata.yml
+!/conan_provider.cmake
 !/cmake/
 !/cmake/*.cmake
 !/cmake/*/

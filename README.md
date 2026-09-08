@@ -16,79 +16,97 @@ If you'd like to support the development of Shijima, consider becoming a [sponso
 
 ## Building
 
-CMake is the primary development build. It supports native Windows, Linux and
-macOS builds and keeps generated files and dependencies in the build directory.
-The existing Makefiles and release workflow remain available for legacy
-Docker cross-compilation and AppImage packaging.
+CMake 3.24+, Conan 2, a C++17 compiler, Python 3.8+, Ninja, and a Qt 6 kit are
+required. Qt is installed separately; Conan supplies libarchive, cpp-httplib,
+zlib, bzip2, liblzma (xz_utils), and their dependencies. Qt needs Core, Gui,
+Widgets, Concurrent, and optionally Multimedia
+(`-DSHIJIMA_USE_QTMULTIMEDIA=OFF` disables sound).
 
-Requirements: CMake 3.21+, a C++17 compiler, Python 3.8+, Qt 6.2+ (Core, Gui,
-Widgets, Concurrent, and Multimedia), and libarchive development files. Ninja is
-required for the provided presets. Qt Multimedia can be omitted when building
-with `-DSHIJIMA_USE_QTMULTIMEDIA=OFF`.
-
-Initialize the pinned dependencies first (no GitHub SSH key is needed):
+Install Conan into your Python environment:
 
 ```sh
-git submodule update --init --recursive
+python -m pip install "conan>=2.23,<3"
 ```
 
-### Linux
-
-On Ubuntu/Debian:
+Initialize the remaining source dependencies:
 
 ```sh
-sudo apt install cmake ninja-build g++ python3 qt6-base-dev qt6-multimedia-dev libarchive-dev libx11-dev libbz2-dev liblzma-dev zlib1g-dev
-cmake --preset debug
-cmake --build --preset debug --parallel
-./build/debug/shijima-qt
+git submodule update --init
+git -C libshimejifinder submodule update --init unarr
 ```
 
-Use `release` instead of `debug` for an optimized build. If Qt was installed
-outside the system directories, add `-DCMAKE_PREFIX_PATH=/path/to/qt/kit` when
-configuring. Linux extension resources are bundled with Python; Node, Yarn and
-JavaScript minification are no longer required for the CMake build.
+libshijima, libshimejifinder, and unarr remain pinned submodules because they
+have no ConanCenter packages. The nested libarchive checkout is unused and does
+not need to be initialized.
+
+The presets inject Conan through
+`CMAKE_PROJECT_TOP_LEVEL_INCLUDES=conan_provider.cmake`. The provider detects
+the selected compiler and configuration, installs missing dependencies, and
+generates CMake package targets inside the build directory. No separate
+`conan install` or Conan toolchain argument is needed.
 
 ### Windows (MSVC)
 
-Install Visual Studio's **Desktop development with C++** tools, an MSVC Qt 6 kit,
-CMake, Ninja, Python, and a current [vcpkg](https://github.com/microsoft/vcpkg)
-checkout. Use an **x64 Native Tools Command Prompt for VS 2022** so CMake can
-find the compiler. Adjust these example paths to match your installations:
+Install Visual Studio's **Desktop development with C++** tools and a matching
+MSVC Qt kit. In an **x64 Native Tools Command Prompt for VS 2022**:
 
 ```bat
-cmake --preset debug -DCMAKE_PREFIX_PATH=C:/Qt/6.8.2/msvc2022_64 -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-windows
+cmake --preset debug -DCMAKE_PREFIX_PATH=C:/Qt/6.8.2/msvc2022_64
 cmake --build --preset debug --parallel
 set PATH=C:\Qt\6.8.2\msvc2022_64\bin;%PATH%
 build\debug\shijima-qt.exe
 ```
 
-The vcpkg manifest installs libarchive and its dependencies; install Qt separately.
-Keep the Qt kit, compiler and dependency architecture compatible. For MinGW, use
-a MinGW Qt kit and matching libarchive binaries instead of MSVC packages.
+Adjust the Qt path for your installation. The compiler, Qt kit, and architecture
+must match. Use `release` instead of `debug` for an optimized build.
+
+### Linux
+
+On Ubuntu/Debian, install Qt and the native desktop integration dependencies:
+
+```sh
+sudo apt install cmake ninja-build g++ python3 python3-venv qt6-base-dev qt6-multimedia-dev libx11-dev
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install "conan>=2.23,<3"
+cmake --preset debug
+cmake --build --preset debug --parallel
+./build/debug/shijima-qt
+```
+
+For an installer Qt kit, add `-DCMAKE_PREFIX_PATH=/path/to/qt/kit`.
+Linux extension resources are generated with Python.
 
 ### macOS
 
-With MacPorts:
+Install a Qt kit, or use MacPorts:
 
 ```sh
-sudo port install cmake ninja python312 qt6-qtbase qt6-qtmultimedia libarchive
-cmake --preset debug -DCMAKE_PREFIX_PATH="/opt/local/libexec/qt6;/opt/local" -DPython3_EXECUTABLE=/opt/local/bin/python3.12
+sudo port install cmake ninja python312 qt6-qtbase qt6-qtmultimedia
+/opt/local/bin/python3.12 -m venv .venv
+. .venv/bin/activate
+python -m pip install "conan>=2.23,<3"
+cmake --preset debug -DCMAKE_PREFIX_PATH=/opt/local/libexec/qt6 -DPython3_EXECUTABLE=/opt/local/bin/python3.12
 cmake --build --preset debug --parallel
 open build/debug/shijima-qt.app
 ```
 
-Alternatively, use a Qt installer kit and point `CMAKE_PREFIX_PATH` at it and
-your libarchive installation. CMake includes the app icon and Info.plist in the
-macOS bundle.
+### CLion and custom CMake profiles
 
-### CLion
+Keep your Qt kit in `CMAKE_PREFIX_PATH` and inject the provider in the profile:
 
-Open the root `CMakeLists.txt` as a project. Select a toolchain matching your Qt
-kit and set `CMAKE_PREFIX_PATH` in the CMake profile. On Windows with vcpkg, also
-set `CMAKE_TOOLCHAIN_FILE` and `VCPKG_TARGET_TRIPLET` as above. If CLion remembers
-an old Qt path or a Makefile project, reload it as a CMake project and reset the
-CMake cache. Use the `shijima-qt` run configuration. Add the Qt `bin` directory
-to its `PATH` on Windows.
+```text
+-DCMAKE_PROJECT_TOP_LEVEL_INCLUDES=conan_provider.cmake
+```
+
+Conan must be on the toolchain's `PATH`. For a custom Conan build or host
+profile, set `CONAN_BUILD_PROFILE` or `CONAN_HOST_PROFILE`; the default host
+profiles are `default;auto-cmake`. Select the `shijima-qt` run configuration
+and add the Qt `bin` directory to its `PATH` on Windows.
+
+When migrating an existing build directory from another dependency toolchain,
+remove its old toolchain/profile arguments and reset the CMake cache, or run
+`cmake --fresh --preset debug` with your Qt path.
 
 ### Installing and packaging
 
@@ -96,19 +114,38 @@ to its `PATH` on Windows.
 cmake --install build/release --prefix /path/to/staging
 ```
 
-The installation contains the executable, licenses and Linux desktop metadata
-(or a macOS app bundle). libarchive and Qt must be available at runtime.
-For a native build with Qt 6.5+, configure with `-DSHIJIMA_DEPLOY_QT=ON` before
-installing to bundle Qt's runtime libraries and plugins. Native Windows installs
-also collect libarchive and its runtime DLLs from the executable directory or
-`PATH`; vcpkg copies these beside the build executable automatically.
+The installation contains the executable, licenses, and Linux desktop metadata
+(or a macOS app bundle). Conan dependencies default to static libraries. Qt must
+be available at runtime; with Qt 6.5+,
+`-DSHIJIMA_DEPLOY_QT=ON` bundles its runtime libraries and plugins.
 
-`SHIJIMA_USE_STUB_PLATFORM=ON` disables native desktop integration for development.
-Debug and Release use separate build directories, so switching configurations
-does not require `make clean`. The submodule sources stay unmodified; the small
-integration layer in `cmake/dependencies` replaces their shell-based generators
-and compiler-specific build flags. Keep its source lists aligned when updating
-the pinned submodules.
+If you override Conan dependencies to shared libraries, activate the generated
+`conanrun.bat` or `conanrun.sh` in
+`<build-dir>/conan/build/<Debug-or-Release>/generators` before running or
+installing. Native Windows installation uses that environment to locate DLLs.
+
+Both CI workflows use CMake and the injected Conan provider. Release artifacts
+use the same native toolchains as development builds, including MSVC on Windows.
+
+The Makefile delegates to CMake and Conan:
+
+```sh
+make CONFIG=debug JOBS=8
+make CONFIG=release SHIJIMA_DEPLOY_QT=ON
+make appimage CONFIG=release
+make macapp CONFIG=release
+```
+
+Its output is under `build/<platform>/<config>` and
+`publish/<platform>/<config>`. Pass extra CMake options through
+`CMAKE_ARGS`, such as `CMAKE_ARGS="-DCMAKE_PREFIX_PATH=/path/to/qt"`.
+The optional Fedora development container includes Conan and MinGW Qt; cross
+builds need matching CMake/Conan host configuration.
+
+`SHIJIMA_USE_STUB_PLATFORM=ON` disables native desktop integration.
+The integration layer in `cmake/dependencies` adapts the pinned source libraries
+without modifying their checkouts; keep its source lists aligned when updating
+those submodules.
 
 ## Platform Notes
 

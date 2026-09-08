@@ -6,6 +6,14 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      build-configs:
+        type: string
+        default: '["Debug", "Release"]'
+      artifact-prefix:
+        type: string
+        default: cmake
 
 jobs:
   build:
@@ -14,42 +22,28 @@ jobs:
       fail-fast: false
       matrix:
         runner: [windows-2022, ubuntu-22.04, ubuntu-24.04-arm, macos-14]
-        config: [Debug, Release]
+        config: ${{ fromJSON(inputs.build-configs || '["Debug", "Release"]') }}
     steps:
       - uses: actions/checkout@v4
         with:
-          submodules: recursive
+          submodules: true
+      - name: Initialize bundled unarr
+        run: git -C libshimejifinder submodule update --init unarr
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Install CMake and Ninja
-        run: python -m pip install 'cmake>=3.24,<4' ninja
+      - name: Install build tools
+        run: python -m pip install 'cmake>=3.24,<4' ninja 'conan>=2.23,<3'
       - name: Set up MSVC
         if: runner.os == 'Windows'
         uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: x64
-      - name: Set up vcpkg
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $baseline = (Get-Content vcpkg.json | ConvertFrom-Json).'builtin-baseline'
-          $vcpkgPath = Join-Path $env:RUNNER_TEMP vcpkg
-          git init $vcpkgPath
-          git -C $vcpkgPath remote add origin https://github.com/microsoft/vcpkg.git
-          git -C $vcpkgPath fetch --depth 1 origin $baseline
-          git -C $vcpkgPath checkout FETCH_HEAD
-          & "$vcpkgPath/bootstrap-vcpkg.bat" -disableMetrics
-          "CMAKE_TOOLCHAIN_FILE=$vcpkgPath/scripts/buildsystems/vcpkg.cmake" >> $env:GITHUB_ENV
-          "VCPKG_ROOT=$vcpkgPath" >> $env:GITHUB_ENV
       - name: Install Linux dependencies
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libarchive-dev libx11-dev libbz2-dev liblzma-dev zlib1g-dev libxcb-cursor0 libgl1-mesa-dev
-      - name: Install macOS dependencies
-        if: runner.os == 'macOS'
-        run: brew install libarchive
+          sudo apt-get install -y libx11-dev libxcb-cursor0 libgl1-mesa-dev
       - name: Install Qt6
         uses: jdpurcell/install-qt-action@v5
         with:
@@ -63,12 +57,9 @@ jobs:
       - name: Configure
         shell: bash
         run: |
-          prefix="$QT_ROOT_DIR"
-          if [ "$RUNNER_OS" = macOS ]; then
-            prefix="$prefix;$(brew --prefix libarchive)"
-          fi
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=${{ matrix.config }} \
-            -DCMAKE_PREFIX_PATH="$prefix" -DSHIJIMA_DEPLOY_QT=ON
+            -DCMAKE_PROJECT_TOP_LEVEL_INCLUDES=conan_provider.cmake \
+            -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR" -DSHIJIMA_DEPLOY_QT=ON
       - name: Build
         run: cmake --build build --parallel 4
       - name: Install
@@ -91,6 +82,6 @@ jobs:
       - name: Archive build
         uses: actions/upload-artifact@v4
         with:
-          name: cmake-${{ matrix.runner }}-${{ matrix.config }}
+          name: ${{ inputs.artifact-prefix || 'cmake' }}-${{ matrix.runner }}-${{ matrix.config }}
           path: publish
           retention-days: 1

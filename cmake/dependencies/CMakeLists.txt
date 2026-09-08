@@ -29,6 +29,11 @@ set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
 set(BUILD_INTEGRATION_TESTS OFF)
 set(BUILD_UNIT_TESTS OFF)
 set(BUILD_FUZZER OFF)
+# The upstream build checks the legacy Find-module variable names. Conan's
+# config packages provide imported targets instead; both packages are required
+# by the root project so these compatibility flags are always valid here.
+set(BZIP2_FOUND TRUE)
+set(LIBLZMA_FOUND TRUE)
 add_subdirectory("${finder_root}/unarr" unarr EXCLUDE_FROM_ALL)
 
 # Static libarchive also defines Ppmd8_* symbols. Prefix unarr's internal
@@ -81,13 +86,4 @@ if(MSVC)
         target_compile_options(${target} PRIVATE /utf-8)
         target_compile_definitions(${target} PRIVATE _CRT_SECURE_NO_WARNINGS NOMINMAX)
     endforeach()
-endif()
-
-# Preserve the existing header-only httplib configuration: no implicit TLS or
-# compression feature detection from its standalone CMake project.
-add_library(shijima-httplib INTERFACE)
-target_include_directories(shijima-httplib SYSTEM INTERFACE "${PROJECT_SOURCE_DIR}/cpp-httplib")
-target_link_libraries(shijima-httplib INTERFACE Threads::Threads)
-if(WIN32)
-    target_link_libraries(shijima-httplib INTERFACE ws2_32 crypt32)
 endif()

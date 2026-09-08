@@ -1,5 +1,7 @@
-cmake_minimum_required(VERSION 3.21)
+cmake_minimum_required(VERSION 3.24)
 project(ShijimaQt VERSION 0.1.0 LANGUAGES C CXX)
+
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/conandata.yml")
 
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
     message(FATAL_ERROR "Use an out-of-source build: cmake -S . -B build")
@@ -18,15 +20,18 @@ option(SHIJIMA_USE_STUB_PLATFORM "Build without native desktop integration" OFF)
 option(SHIJIMA_DEPLOY_QT "Bundle Qt runtime libraries when installing" OFF)
 
 foreach(required_file IN ITEMS libshijima/CMakeLists.txt libshimejifinder/CMakeLists.txt
-        libshimejifinder/unarr/CMakeLists.txt cpp-httplib/httplib.h)
+        libshimejifinder/unarr/CMakeLists.txt)
     if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${required_file}")
-        message(FATAL_ERROR "Missing ${required_file}. Run: git submodule update --init --recursive")
+        message(FATAL_ERROR "Missing ${required_file}. Run: git submodule update --init; git -C libshimejifinder submodule update --init unarr")
     endif()
 endforeach()
 
 find_package(Python3 3.8 REQUIRED COMPONENTS Interpreter)
 find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Concurrent)
-find_package(LibArchive REQUIRED)
+find_package(LibArchive CONFIG REQUIRED)
+find_package(httplib CONFIG REQUIRED)
+find_package(BZip2 CONFIG REQUIRED)
+find_package(LibLZMA CONFIG REQUIRED)
 find_package(Threads REQUIRED)
 if(SHIJIMA_USE_QTMULTIMEDIA)
     find_package(Qt6 REQUIRED COMPONENTS Multimedia)
@@ -44,7 +49,7 @@ qt_add_executable(shijima-qt
 target_include_directories(shijima-qt PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${SHIJIMA_GENERATED_DIR}")
 target_link_libraries(shijima-qt PRIVATE
     Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Concurrent
-    shijima shimejifinder shijima-httplib
+    shijima shimejifinder httplib::httplib Threads::Threads
 )
 target_compile_definitions(shijima-qt PRIVATE SHIJIMA_USE_QTMULTIMEDIA=$<BOOL:${SHIJIMA_USE_QTMULTIMEDIA}>)
 if(SHIJIMA_USE_QTMULTIMEDIA)
@@ -68,7 +73,7 @@ shijima_generate_resource("${SHIJIMA_GENERATED_DIR}/DefaultMascot.cc" mascot ${m
 set(license_files)
 foreach(name IN ITEMS Shijima-Qt.LICENSE.txt duktape.LICENSE.txt duktape.AUTHORS.rst
         libarchive.LICENSE.txt libshijima.LICENSE.txt libshimejifinder.LICENSE.txt
-        unarr.LICENSE.txt unarr.AUTHORS.txt Qt.LICENSE.txt rapidxml.LICENSE.txt)
+        unarr.LICENSE.txt unarr.AUTHORS.txt Qt.LICENSE.txt rapidxml.LICENSE.txt cpp-httplib.LICENSE.txt)
     list(APPEND license_files "${CMAKE_CURRENT_SOURCE_DIR}/licenses/${name}")
 endforeach()
 shijima_generate_resource("${SHIJIMA_GENERATED_DIR}/licenses_generated.hpp" licenses ${license_files})
@@ -80,8 +85,8 @@ include(cmake/Platform.cmake)
 install(TARGETS shijima-qt RUNTIME_DEPENDENCY_SET shijima_runtime
     BUNDLE DESTINATION . RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
 if(WIN32 AND NOT CMAKE_CROSSCOMPILING)
-    # Include libarchive and its transitive DLLs as well as Qt. vcpkg's app-local
-    # deployment puts them beside the build executable; PATH handles other kits.
+    # Conan dependencies default to static libraries. For shared overrides,
+    # activate Conan's run environment before installing to locate their DLLs.
     install(RUNTIME_DEPENDENCY_SET shijima_runtime
         DIRECTORIES "$<TARGET_FILE_DIR:shijima-qt>" "$<TARGET_FILE_DIR:Qt6::Core>"
         PRE_EXCLUDE_REGEXES "api-ms-" "ext-ms-"
