@@ -111,6 +111,8 @@ remove its old toolchain/profile arguments and reset the CMake cache, or run
 ### Installing and packaging
 
 ```sh
+cmake --preset release
+cmake --build --preset release --parallel
 cmake --install build/release --prefix /path/to/staging
 ```
 
@@ -127,18 +129,10 @@ installing. Native Windows installation uses that environment to locate DLLs.
 Both CI workflows use CMake and the injected Conan provider. Release artifacts
 use the same native toolchains as development builds, including MSVC on Windows.
 
-The Makefile delegates to CMake and Conan:
+The presets put build output under `build/debug` and `build/release`.
+Pass extra options directly to CMake, such as
+`cmake --preset release -DCMAKE_PREFIX_PATH=/path/to/qt -DSHIJIMA_DEPLOY_QT=ON`.
 
-```sh
-make CONFIG=debug JOBS=8
-make CONFIG=release SHIJIMA_DEPLOY_QT=ON
-make appimage CONFIG=release
-make macapp CONFIG=release
-```
-
-Its output is under `build/<platform>/<config>` and
-`publish/<platform>/<config>`. Pass extra CMake options through
-`CMAKE_ARGS`, such as `CMAKE_ARGS="-DCMAKE_PREFIX_PATH=/path/to/qt"`.
 The optional Fedora development container includes Conan and MinGW Qt; cross
 builds need matching CMake/Conan host configuration.
 
