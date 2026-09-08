@@ -32,6 +32,8 @@ void showOnAllDesktops(QWidget *widget) {
         NSWindowCollectionBehaviorCanJoinAllSpaces];
 }
 
+void raiseOnGlobalClick(QWidget *widget) {}
+
 bool useWindowMasks() {
     return false;
 }

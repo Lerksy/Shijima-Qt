@@ -72,6 +72,7 @@ ShijimaWidget::ShijimaWidget(MascotData *mascotData,
         flags |= Qt::Tool;
         #endif
         setWindowFlags(flags);
+        Platform::raiseOnGlobalClick(this);
     }
     setFixedSize(m_windowWidth, m_windowHeight);
 }

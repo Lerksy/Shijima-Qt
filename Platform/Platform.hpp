@@ -27,6 +27,8 @@ namespace Platform {
 
 void initialize(int argc, char **argv);
 void showOnAllDesktops(QWidget *widget);
+// Register a desktop mascot for platforms that restore it after global clicks.
+void raiseOnGlobalClick(QWidget *widget);
 bool useWindowMasks();
 
 }
