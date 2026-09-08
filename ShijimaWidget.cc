@@ -346,6 +346,7 @@ void ShijimaWidget::mousePressEvent(QMouseEvent *event) {
             return;
         }
     }
+    m_dragTarget->raise();
     if (event->button() == Qt::MouseButton::LeftButton) {
         m_dragTarget->m_mascot->state->dragging = true;
     }
