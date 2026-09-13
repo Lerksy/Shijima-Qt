@@ -25,10 +25,6 @@ jobs:
         config: ${{ fromJSON(inputs.build-configs || '["Debug", "Release"]') }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: true
-      - name: Initialize bundled unarr
-        run: git -C libshimejifinder submodule update --init unarr
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'

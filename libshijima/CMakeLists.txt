@@ -1,32 +1,4 @@
-cmake_minimum_required(VERSION 3.14)
-project(shijima)
-
-set(CMAKE_CXX_STANDARD 14)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
-find_package(pugixml)
-
-if(NOT DEFINED CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE "Debug")
-endif()
-
-option(SHIJIMA_BUILD_EXAMPLES "Build shijima examples" OFF)
-
-if(CMAKE_BUILD_TYPE EQUAL "Release")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -DSHIJIMA_DUK_STATIC_BUILD")
-    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
-else()
-    if(NOT MSVC)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")
-    endif ()
-endif()
-
-if(NOT MSVC)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror -Wpedantic")
-endif()
-
-add_library(
-        ${PROJECT_NAME}
+add_library(shijima STATIC
     shijima/action/animate.cc
     shijima/action/animation.cc
     shijima/action/base.cc
@@ -78,20 +50,12 @@ add_library(
     shijima/translator.cc
 )
 
-target_include_directories(${PROJECT_NAME} PUBLIC shijima)
-
-target_link_libraries(${PROJECT_NAME} PUBLIC pugixml::pugixml)
-
-if(SHIJIMA_BUILD_EXAMPLES)
-    find_package(SDL2 REQUIRED)
-    find_package(SDL2_image REQUIRED)
-    include_directories(${SDL2_INCLUDE_DIRS})
-
-    add_executable(shijima-sandbox main.cc)
-    add_dependencies(shijima-sandbox shijima)
-    target_link_libraries(shijima-sandbox shijima SDL2_image::SDL2_image ${SDL2_LIBRARIES})
-
-    add_custom_command(TARGET shijima-sandbox POST_BUILD
-        COMMAND "$<$<CONFIG:Release>:${CMAKE_STRIP};shijima-sandbox>"
-        COMMAND_EXPAND_LISTS)
+target_include_directories(shijima PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/shijima")
+target_link_libraries(shijima PUBLIC pugixml::pugixml)
+target_compile_definitions(shijima PRIVATE SHIJIMA_DUK_STATIC_BUILD)
+if(MSVC)
+    target_compile_options(shijima PRIVATE /utf-8)
+    target_compile_definitions(shijima PRIVATE _CRT_SECURE_NO_WARNINGS NOMINMAX)
+else()
+    target_compile_options(shijima PRIVATE -Wall -Wextra -Werror -Wpedantic)
 endif()

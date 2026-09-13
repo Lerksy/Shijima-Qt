@@ -11,35 +11,53 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 if(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build configuration" FORCE)
+    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Debug Release RelWithDebInfo MinSizeRel)
 endif()
 
 option(SHIJIMA_USE_QTMULTIMEDIA "Enable mascot sound effects (requires Qt Multimedia)" ON)
 option(SHIJIMA_USE_STUB_PLATFORM "Build without native desktop integration" OFF)
 option(SHIJIMA_DEPLOY_QT "Bundle Qt runtime libraries when installing" OFF)
 
+set(qt_components Core Gui Widgets Concurrent)
+if(SHIJIMA_USE_QTMULTIMEDIA)
+    list(APPEND qt_components Multimedia)
+endif()
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    list(APPEND qt_components DBus)
+endif()
+
 find_package(Python3 3.8 REQUIRED COMPONENTS Interpreter)
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Concurrent)
+find_package(Qt6 REQUIRED COMPONENTS ${qt_components})
 find_package(LibArchive CONFIG REQUIRED)
 find_package(httplib CONFIG REQUIRED)
 find_package(BZip2 CONFIG REQUIRED)
 find_package(LibLZMA CONFIG REQUIRED)
+find_package(ZLIB CONFIG REQUIRED)
+find_package(pugixml CONFIG REQUIRED)
 find_package(Threads REQUIRED)
-if(SHIJIMA_USE_QTMULTIMEDIA)
-    find_package(Qt6 REQUIRED COMPONENTS Multimedia)
-endif()
 
 include(GNUInstallDirs)
 include(cmake/Resources.cmake)
 add_subdirectory(libshijima)
 add_subdirectory(libshimejifinder)
-add_subdirectory(cmake/dependencies)
 
 qt_add_executable(shijima-qt
-    main.cc Asset.cc MascotData.cc AssetLoader.cc ForcedProgressDialog.cc
-    ShijimaContextMenu.cc ShijimaManager.cc ShijimaWidget.cc SoundEffectManager.cc
-    ShijimaLicensesDialog.cc ShimejiInspectorDialog.cc ShijimaHttpApi.cc cli.cc
+    main.cc
+    Asset.cc
+    AssetLoader.cc
+    cli.cc
+    ForcedProgressDialog.cc
+    MascotData.cc
+    ShijimaContextMenu.cc
+    ShijimaHttpApi.cc
+    ShijimaLicensesDialog.cc
+    ShijimaManager.cc
+    ShijimaWidget.cc
+    ShimejiInspectorDialog.cc
+    SoundEffectManager.cc
 )
 target_include_directories(shijima-qt PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${SHIJIMA_GENERATED_DIR}")
 target_link_libraries(shijima-qt PRIVATE
@@ -77,8 +95,11 @@ target_sources(shijima-qt PRIVATE "${SHIJIMA_GENERATED_DIR}/DefaultMascot.cc"
 
 include(cmake/Platform.cmake)
 
-install(TARGETS shijima-qt RUNTIME_DEPENDENCY_SET shijima_runtime
-    BUNDLE DESTINATION . RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
+install(TARGETS shijima-qt
+    RUNTIME_DEPENDENCY_SET shijima_runtime
+    BUNDLE DESTINATION .
+    RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+)
 if(WIN32 AND NOT CMAKE_CROSSCOMPILING)
     # Conan dependencies default to static libraries. For shared overrides,
     # activate Conan's run environment before installing to locate their DLLs.

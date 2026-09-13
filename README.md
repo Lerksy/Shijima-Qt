@@ -28,16 +28,8 @@ Install Conan into your Python environment:
 python -m pip install "conan>=2.23,<3"
 ```
 
-Initialize the remaining source dependencies:
-
-```sh
-git submodule update --init
-git -C libshimejifinder submodule update --init unarr
-```
-
-libshijima, libshimejifinder, and unarr remain pinned submodules because they
-have no ConanCenter packages. The nested libarchive checkout is unused and does
-not need to be initialized.
+libshijima, libshimejifinder, and unarr are included in the source tree. Their
+small CMake targets are built directly with the application.
 
 The presets inject Conan through
 `CMAKE_PROJECT_TOP_LEVEL_INCLUDES=conan_provider.cmake`. The provider detects
@@ -137,9 +129,6 @@ The optional Fedora development container includes Conan and MinGW Qt; cross
 builds need matching CMake/Conan host configuration.
 
 `SHIJIMA_USE_STUB_PLATFORM=ON` disables native desktop integration.
-The integration layer in `cmake/dependencies` adapts the pinned source libraries
-without modifying their checkouts; keep its source lists aligned when updating
-those submodules.
 
 ## Platform Notes
 

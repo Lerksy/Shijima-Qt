@@ -27,7 +27,6 @@ else()
 endif()
 
 if(platform STREQUAL "Linux")
-    find_package(Qt6 REQUIRED COMPONENTS DBus)
     find_package(X11 REQUIRED)
     target_link_libraries(shijima-qt PRIVATE Qt6::DBus X11::X11)
     target_sources(shijima-qt PRIVATE
