@@ -36,71 +36,8 @@
 #include <functional>
 #include "../utf8_convert.hpp"
 
-#if SHIMEJIFINDER_DYNAMIC_LIBARCHIVE
-#include <dlfcn.h>
-#endif
-
 namespace shimejifinder {
 namespace libarchive {
-
-#if SHIMEJIFINDER_DYNAMIC_LIBARCHIVE
-
-::archive *(*archive::archive_read_new)() = NULL;
-int (*archive::archive_read_support_filter_all)(::archive *) = NULL;
-int (*archive::archive_read_support_format_all)(::archive *) = NULL;
-int (*archive::archive_read_free)(::archive *) = NULL;
-const char *(*archive::archive_error_string)(::archive *) = NULL;
-int (*archive::archive_read_next_header)(::archive *, ::archive_entry **) = NULL;
-mode_t (*archive::archive_entry_filetype)(::archive_entry *) = NULL;
-int (*archive::archive_read_data_skip)(::archive *) = NULL;
-const char *(*archive::archive_entry_pathname)(::archive_entry *) = NULL;
-int (*archive::archive_read_open2)(::archive *a, void *, archive_open_callback *,
-    archive_read_callback *, archive_skip_callback *, archive_close_callback *) = NULL;
-int (*archive::archive_read_open_fd)(::archive *, int, size_t) = NULL;
-int (*archive::archive_read_data_block)(::archive *, const void **, size_t *,
-    la_int64_t *) = NULL;
-la_int64_t (*archive::archive_seek_data)(::archive *, la_int64_t, int) = NULL;
-int (*archive::archive_read_open_memory)(::archive *, const void *, size_t) = NULL;
-int (*archive::archive_read_open_filename)(::archive *, const char *, size_t) = NULL;
-
-bool archive::loaded = false;
-
-const char *archive::load(const char *path) {
-    void *libarchive = dlopen(path, RTLD_NOW);
-
-    if (libarchive == NULL) {
-        return "no library";
-    }
-
-    #define load(symbol) do { \
-        *(void **)&symbol = dlsym(libarchive, #symbol); \
-        if (symbol == NULL) { \
-            dlclose(libarchive); \
-            return "missing: " #symbol; \
-        } \
-    } while (0)
-
-    load(archive_read_new);
-    load(archive_read_support_filter_all);
-    load(archive_read_support_format_all);
-    load(archive_read_free);
-    load(archive_error_string);
-    load(archive_read_next_header);
-    load(archive_entry_filetype);
-    load(archive_read_data_skip);
-    load(archive_entry_pathname);
-    load(archive_read_open2);
-    load(archive_read_open_fd);
-    load(archive_read_data_block);
-    load(archive_seek_data);
-    load(archive_read_open_memory);
-    load(archive_read_open_filename);
-
-    #undef load
-
-    loaded = true;
-    return NULL;
-}
 
 #endif
 
@@ -323,11 +260,6 @@ std::string archive::get_error(::archive *ar) {
 void archive::iterate_archive(::archive *ar, int &idx, std::string const& root,
     std::function<void (int, ::archive *, std::string const&)> &cb)
 {
-    #if SHIMEJIFINDER_DYNAMIC_LIBARCHIVE
-    if (!loaded) {
-        throw std::runtime_error("libarchive not loaded");
-    }
-    #endif
     ::archive_entry *entry;
     int ret;
 
@@ -406,5 +338,3 @@ void archive::extract() {
 
 }
 }
-
-#endif

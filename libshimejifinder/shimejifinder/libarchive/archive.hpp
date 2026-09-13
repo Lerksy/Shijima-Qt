@@ -23,9 +23,6 @@
 #include "../archive.hpp"
 #include <archive.h>
 
-#if SHIMEJIFINDER_DYNAMIC_LIBARCHIVE
-#include <archive_entry.h>
-#else
 struct archive_entry;
 struct archive;
 #endif
@@ -34,30 +31,6 @@ namespace shimejifinder {
 namespace libarchive {
 
 class archive : public shimejifinder::archive {
-#if SHIMEJIFINDER_DYNAMIC_LIBARCHIVE
-public:
-    static ::archive *(*archive_read_new)();
-    static int (*archive_read_support_filter_all)(::archive *);
-    static int (*archive_read_support_format_all)(::archive *);
-    static int (*archive_read_free)(::archive *);
-    static const char *(*archive_error_string)(::archive *);
-    static int (*archive_read_next_header)(::archive *, ::archive_entry **);
-    static mode_t (*archive_entry_filetype)(::archive_entry *);
-    static int (*archive_read_data_skip)(::archive *);
-    static const char *(*archive_entry_pathname)(::archive_entry *);
-    static int (*archive_read_open2)(::archive *a, void *, archive_open_callback *,
-        archive_read_callback *, archive_skip_callback *, archive_close_callback *);
-    static int (*archive_read_open_fd)(::archive *, int, size_t);
-    static int (*archive_read_data_block)(::archive *, const void **, size_t *,
-        la_int64_t *);
-    static la_int64_t (*archive_seek_data)(::archive *, la_int64_t, int);
-    static int (*archive_read_open_memory)(::archive *, const void *, size_t);
-    static int (*archive_read_open_filename)(::archive *, const char *, size_t);
-
-    static bool loaded;
-
-    static const char *load(const char *path);
-#endif
 private:
     class nested_context {
     private:
@@ -92,5 +65,3 @@ protected:
 
 }
 }
-
-#endif
