@@ -19,13 +19,6 @@ option(SHIJIMA_USE_QTMULTIMEDIA "Enable mascot sound effects (requires Qt Multim
 option(SHIJIMA_USE_STUB_PLATFORM "Build without native desktop integration" OFF)
 option(SHIJIMA_DEPLOY_QT "Bundle Qt runtime libraries when installing" OFF)
 
-foreach(required_file IN ITEMS libshijima/CMakeLists.txt libshimejifinder/CMakeLists.txt
-        libshimejifinder/unarr/CMakeLists.txt)
-    if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${required_file}")
-        message(FATAL_ERROR "Missing ${required_file}. Run: git submodule update --init; git -C libshimejifinder submodule update --init unarr")
-    endif()
-endforeach()
-
 find_package(Python3 3.8 REQUIRED COMPONENTS Interpreter)
 find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Concurrent)
 find_package(LibArchive CONFIG REQUIRED)
@@ -40,6 +33,7 @@ endif()
 include(GNUInstallDirs)
 include(cmake/Resources.cmake)
 add_subdirectory(libshijima)
+add_subdirectory(libshimejifinder)
 add_subdirectory(cmake/dependencies)
 
 qt_add_executable(shijima-qt

@@ -16,7 +16,6 @@ set(BUILD_FUZZER OFF)
 # by the root project so these compatibility flags are always valid here.
 set(BZIP2_FOUND TRUE)
 set(LIBLZMA_FOUND TRUE)
-add_subdirectory("${finder_root}/unarr" unarr EXCLUDE_FROM_ALL)
 
 # Static libarchive also defines Ppmd8_* symbols. Prefix unarr's internal
 # implementation, including its callers, so both codecs can coexist.
@@ -47,22 +46,10 @@ if(MSVC)
     set(finder_archive_source "${CMAKE_CURRENT_BINARY_DIR}/libarchive-compat.cc")
 endif()
 
-add_library(shimejifinder STATIC
-    "${finder_archive_source}"
-    "${finder_root}/shimejifinder/libunarr/unarr_FILE.c"
-    "${finder_root}/shimejifinder/libunarr/archive.cc"
-    "${finder_root}/shimejifinder/analyze.cc"
-    "${finder_root}/shimejifinder/archive_folder.cc"
-    "${CMAKE_CURRENT_BINARY_DIR}/archive.cc"
-    "${finder_root}/shimejifinder/archive_entry.cc"
-    "${finder_root}/shimejifinder/extract_target.cc"
-    "${finder_root}/shimejifinder/utils.cc"
-    "${SHIJIMA_GENERATED_DIR}/default_actions.cc"
-    "${SHIJIMA_GENERATED_DIR}/default_behaviors.cc"
-)
+
 target_include_directories(shimejifinder PUBLIC "${finder_root}"
     PRIVATE "${finder_root}/shimejifinder" "${SHIJIMA_GENERATED_DIR}")
-target_link_libraries(shimejifinder PUBLIC LibArchive::LibArchive unarr)
+
 if(MSVC)
     foreach(target IN ITEMS shijima shimejifinder)
         target_compile_options(${target} PRIVATE /utf-8)
