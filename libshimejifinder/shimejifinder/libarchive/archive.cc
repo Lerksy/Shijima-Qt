@@ -14,9 +14,7 @@
 // 
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
-// 
-
-#if !SHIMEJIFINDER_NO_LIBARCHIVE
+//
 
 #include <string.h>
 #include "archive.hpp"
@@ -38,8 +36,6 @@
 
 namespace shimejifinder {
 namespace libarchive {
-
-#endif
 
 static void fix_japanese(std::string &path) {
     if (path.size() > 8) {

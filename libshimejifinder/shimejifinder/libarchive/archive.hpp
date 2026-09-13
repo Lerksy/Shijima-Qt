@@ -18,14 +18,12 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 // 
 
-#if !SHIMEJIFINDER_NO_LIBARCHIVE
 
 #include "../archive.hpp"
 #include <archive.h>
 
 struct archive_entry;
 struct archive;
-#endif
 
 namespace shimejifinder {
 namespace libarchive {
