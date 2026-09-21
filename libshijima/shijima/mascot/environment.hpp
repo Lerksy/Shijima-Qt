@@ -121,10 +121,10 @@ public:
 
     class area {
     public:
-        double top;
-        double right;
-        double bottom;
-        double left;
+        double top{};
+        double right{};
+        double bottom{};
+        double left{};
         bool visible() {
             return (left != right) && (top != bottom);
         }

@@ -39,6 +39,8 @@ find_package(ZLIB CONFIG REQUIRED)
 find_package(pugixml CONFIG REQUIRED)
 find_package(Threads REQUIRED)
 
+set(CMAKE_AUTOMOC ON)
+
 include(GNUInstallDirs)
 include(cmake/Resources.cmake)
 add_subdirectory(libshijima)

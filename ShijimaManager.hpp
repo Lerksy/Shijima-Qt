@@ -43,6 +43,7 @@ class QWidget;
 
 class ShijimaManager : public PlatformWidget<QMainWindow>
 {
+    Q_OBJECT
 public:
     static ShijimaManager *defaultManager();
     static void finalize();
@@ -62,7 +63,11 @@ public:
     std::map<int, ShijimaWidget *> const& mascotsById();
     ShijimaWidget *hitTest(QPoint const& screenPos);
     void onTickSync(std::function<void(ShijimaManager *)> callback);
-    ~ShijimaManager();
+    ~ShijimaManager() override;
+
+signals:
+    void runInMainThread(std::function<void()> callback);
+
 protected:
     void timerEvent(QTimerEvent *event) override;
     void showEvent(QShowEvent *event) override;
@@ -70,9 +75,13 @@ protected:
     bool eventFilter(QObject *obj, QEvent *event) override;
     void dragEnterEvent(QDragEnterEvent *event) override;
     void dropEvent(QDropEvent *event) override;
+
 private:
     explicit ShijimaManager(QWidget *parent = nullptr);
     static std::string imgRootForTemplatePath(std::string const& path);
+
+    void onRunInMainThread(std::function<void()> callback);
+
     std::unique_lock<std::mutex> acquireLock();
     void loadDefaultMascot();
     void loadData(MascotData *data);
@@ -89,7 +98,7 @@ private:
     void updateSandboxBackground();
     bool windowedMode();
     QWidget *mascotParent();
-    void setWindowedMode(bool windowedMode);
+    void setWindowedMode(bool isWindowed);
     void screenAdded(QScreen *);
     void screenRemoved(QScreen *);
     void quitAction();

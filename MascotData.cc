@@ -79,6 +79,10 @@ MascotData::MascotData(QString const& path, int id): m_path(path),
             images.append(basename);
         }
     }
+    if (images.empty()) {
+        throw std::invalid_argument("Mascot should have at least one image.");
+    }
+
     images.sort(Qt::CaseInsensitive);
     QImage frame;
     frame.load(dir.absoluteFilePath(images[0]));

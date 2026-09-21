@@ -16,16 +16,20 @@
 // 
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
-// 
+//
 
 #include <QProgressDialog>
 
-class ForcedProgressDialog : public QProgressDialog {
-private:
-    bool m_allowsClose = false;
+class ForcedProgressDialog : public QProgressDialog
+{
+public:
+    ForcedProgressDialog(QWidget *parent = nullptr);
+
+    bool close();
+
 protected:
     void closeEvent(QCloseEvent *) override;
-public:
-    ForcedProgressDialog(QWidget *parent = nullptr): QProgressDialog(parent) {}
-    bool close();
+
+private:
+    bool m_allowsClose = false;
 };

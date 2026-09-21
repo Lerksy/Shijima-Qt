@@ -18,11 +18,24 @@
 
 #include "ForcedProgressDialog.hpp"
 #include <QCloseEvent>
+#include <QPushButton>
 
 void ForcedProgressDialog::closeEvent(QCloseEvent *event) {
     if (!m_allowsClose) {
         event->ignore();
     }
+}
+
+ForcedProgressDialog::ForcedProgressDialog(QWidget *parent): QProgressDialog(parent) {
+    setRange(0, 0);
+    auto *cancelButton = new QPushButton;
+    cancelButton->setEnabled(false);
+    cancelButton->setText("Cancel");
+    setModal(true);
+    setCancelButton(cancelButton);
+    setLabelText("Importing shimeji...");
+    setAttribute(Qt::WA_DeleteOnClose);
+    show();
 }
 
 bool ForcedProgressDialog::close() {

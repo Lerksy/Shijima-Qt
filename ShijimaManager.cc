@@ -77,18 +77,6 @@ static QString colorToString(QColor const& color) {
     return QString { &buf[0] };
 }
 
-// https://stackoverflow.com/questions/34135624/-/54029758#54029758
-static void dispatchToMainThread(std::function<void()> callback) {
-    QTimer *timer = new QTimer;
-    timer->moveToThread(qApp->thread());
-    timer->setSingleShot(true);
-    QObject::connect(timer, &QTimer::timeout, [timer, callback]() {
-        callback();
-        timer->deleteLater();
-    });
-    QMetaObject::invokeMethod(timer, "start", Qt::QueuedConnection, Q_ARG(int, 0));
-}
-
 static ShijimaManager *m_defaultManager = nullptr;
 
 ShijimaManager *ShijimaManager::defaultManager() {
@@ -238,7 +226,7 @@ void ShijimaManager::deleteAction() {
             selected.remove(i);
         }
     }
-    if (selected.size() == 0) {
+    if (selected.empty()) {
         return;
     }
     QString msg = "Are you sure you want to delete these shimeji?";
@@ -279,6 +267,10 @@ void ShijimaManager::deleteAction() {
         }
         refreshListWidget();
     }
+}
+
+void ShijimaManager::onRunInMainThread(std::function<void()> callback) {
+    callback();
 }
 
 std::unique_lock<std::mutex> ShijimaManager::acquireLock() {
@@ -521,17 +513,8 @@ std::set<std::string> ShijimaManager::import(QString const& path) noexcept {
 }
 
 void ShijimaManager::importWithDialog(QList<QString> const& paths) {
-    ForcedProgressDialog *dialog = new ForcedProgressDialog { this };
-    dialog->setRange(0, 0);
-    QPushButton *cancelButton = new QPushButton;
-    cancelButton->setEnabled(false);
-    cancelButton->setText("Cancel");
-    dialog->setModal(true);
-    dialog->setCancelButton(cancelButton);
-    dialog->setLabelText("Importing shimeji...");
-    dialog->setAttribute(Qt::WA_DeleteOnClose);
-    dialog->show();
-    //hide();
+    auto *dialog = new ForcedProgressDialog { this };
+
     QtConcurrent::run([this, paths](){
         std::set<std::string> changed;
         for (auto &path : paths) {
@@ -540,15 +523,15 @@ void ShijimaManager::importWithDialog(QList<QString> const& paths) {
         }
         return changed;
     }).then([this, dialog](std::set<std::string> changed){
-        dispatchToMainThread([this, changed, dialog](){
+        emit runInMainThread([this, changed, dialog](){
             reloadMascots(changed);
             this->show();
             dialog->close();
             QString msg;
             QMessageBox::Icon icon;
-            if (changed.size() > 0) {
-                msg = QString::fromStdString("Imported " + std::to_string(changed.size()) +
-                    " mascot" + (changed.size() == 1 ? "" : "s") + ".");
+            if (!changed.empty()) {
+                const auto changedAmount = changed.size();
+                msg = QString("Imported %1 mascot%2.").arg(changedAmount).arg(changedAmount == 1 ? "" : "s");
                 icon = QMessageBox::Icon::Information;
             }
             else {
@@ -642,17 +625,17 @@ void ShijimaManager::onTickSync(std::function<void(ShijimaManager *)> callback) 
     m_tickCallbackCompletion.wait(lock);
 }
 
-void ShijimaManager::setWindowedMode(bool windowedMode) {
-    if (!!this->windowedMode() == !!windowedMode) {
+void ShijimaManager::setWindowedMode(bool isWindowed) {
+    if (windowedMode() == isWindowed) {
         // no change
         return;
     }
-    m_windowedModeAction->setChecked(windowedMode);
+    m_windowedModeAction->setChecked(isWindowed);
     for (auto mascot : m_mascots) {
         mascot->close();
         mascot->setParent(nullptr);
     }
-    if (windowedMode) {
+    if (isWindowed) {
         QWidget *parent;
         #if defined(_WIN32)
             parent = nullptr;
@@ -673,7 +656,7 @@ void ShijimaManager::setWindowedMode(bool windowedMode) {
     }
     updateEnvironment();
     std::shared_ptr<shijima::mascot::environment> env;
-    if (windowedMode) {
+    if (isWindowed) {
         env = m_env[nullptr];
     }
     else {
@@ -681,7 +664,7 @@ void ShijimaManager::setWindowedMode(bool windowedMode) {
     }
     for (auto &mascot : m_mascots) {
         bool inspectorWasVisible = mascot->inspectorVisible();
-        auto newMascot = new ShijimaWidget(*mascot, windowedMode,
+        auto newMascot = new ShijimaWidget(*mascot, isWindowed,
             mascotParent());
         newMascot->setEnv(env);
         delete mascot;
@@ -711,6 +694,7 @@ ShijimaManager::ShijimaManager(QWidget *parent):
         this, &ShijimaManager::screenAdded);
     connect(qApp, &QGuiApplication::screenRemoved,
         this, &ShijimaManager::screenRemoved);
+    connect(this, &ShijimaManager::runInMainThread, this, &ShijimaManager::onRunInMainThread, Qt::QueuedConnection);
 
     QString dataPath = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
     QString mascotsPath = QDir::cleanPath(dataPath + QDir::separator() + "mascots");
@@ -739,7 +723,7 @@ ShijimaManager::ShijimaManager(QWidget *parent):
     if (m_windowObserver.tickFrequency() > 0) {
         m_windowObserverTimer = startTimer(m_windowObserver.tickFrequency());
     }
-    setWindowFlags((windowFlags() | Qt::CustomizeWindowHint | Qt::MaximizeUsingFullscreenGeometryHint |
+    setWindowFlags((windowFlags() | Qt::CustomizeWindowHint | Qt::ExpandedClientAreaHint |
         Qt::WindowMinimizeButtonHint) & ~Qt::WindowMaximizeButtonHint);
     setManagerVisible(true);
 
@@ -763,7 +747,7 @@ void ShijimaManager::closeEvent(QCloseEvent *event) {
     if (!m_allowClose) {
         event->ignore();
         #if defined(_WIN32)
-        if (m_mascots.size() == 0) {
+        if (m_mascots.empty()) {
             askClose();
         }
         else {
@@ -815,25 +799,23 @@ void ShijimaManager::updateEnvironment(QScreen *screen) {
         available = screen->availableGeometry();
     }
     int taskbarHeight = available.bottom() - geometry.bottom();
-    int statusBarHeight = geometry.top() - available.top();
     if (taskbarHeight < 0) {
         taskbarHeight = 0;
     }
+    
+    int statusBarHeight = geometry.top() - available.top();
     if (statusBarHeight < 0) {
         statusBarHeight = 0;
     }
-    env->screen = { (double)geometry.top() + statusBarHeight,
-        (double)geometry.right(),
-        (double)geometry.bottom(),
-        (double)geometry.left() };
-    env->floor = { (double)geometry.bottom() - taskbarHeight,
-        (double)geometry.left(), (double)geometry.right() };
-    env->work_area = { (double)geometry.top(),
-        (double)geometry.right(),
-        (double)geometry.bottom() - taskbarHeight,
-        (double)geometry.left() };
-    env->ceiling = { (double)geometry.top(), (double)geometry.left(),
-        (double)geometry.right() };
+    auto geomF = geometry.toRectF();
+
+    env->screen = {geomF.top() + statusBarHeight, geomF.right(), geomF.bottom(), geomF.left()};
+    env->floor = {geomF.bottom() - taskbarHeight, geomF.left(), geomF.right()};
+    env->work_area = { geomF.top(),
+        geomF.right(),
+        geomF.bottom() - taskbarHeight,
+        geomF.left() };
+    env->ceiling = {geomF.top(), geomF.left(), geomF.right()};
     if (!windowedMode() && m_currentWindow.available &&
         std::fabs(m_currentWindow.x) > 1 && std::fabs(m_currentWindow.y) > 1)
     {
