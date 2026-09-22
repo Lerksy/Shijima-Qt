@@ -54,6 +54,7 @@
 #include <QKeySequence>
 #include <QListWidget>
 #include <QMessageBox>
+#include <QSystemTrayIcon>
 #include <QUrl>
 #include <QtConcurrent>
 #include <string>
@@ -458,6 +459,35 @@ void ShijimaManager::buildToolbar() {
     }
 }
 
+void ShijimaManager::revealManager() {
+    setManagerVisible(true);
+    show();
+    raise();
+    activateWindow();
+}
+
+void ShijimaManager::buildTrayIcon() {
+    auto icon = QIcon { ":/com.pixelomer.ShijimaQt.png" };
+    setWindowIcon(icon);
+
+    auto menu = new QMenu { this };
+    auto showAction = menu->addAction("Show Shijima Manager");
+    connect(showAction, &QAction::triggered, this, &ShijimaManager::revealManager);
+
+    m_trayIcon = new QSystemTrayIcon { icon, this };
+    m_trayIcon->setToolTip("Shijima-Qt");
+    m_trayIcon->setContextMenu(menu);
+    connect(m_trayIcon, &QSystemTrayIcon::activated, this,
+        [this](QSystemTrayIcon::ActivationReason reason) {
+            if (reason == QSystemTrayIcon::Trigger ||
+                reason == QSystemTrayIcon::DoubleClick)
+            {
+                revealManager();
+            }
+        });
+    m_trayIcon->show();
+}
+
 void ShijimaManager::refreshListWidget() {
     //FIXME: refresh only changed items
     m_listWidget.clear();
@@ -724,6 +754,7 @@ ShijimaManager::ShijimaManager(QWidget *parent):
     m_listWidget.setSelectionMode(QListWidget::ExtendedSelection);
     setCentralWidget(&m_listWidget);
     buildToolbar();
+    buildTrayIcon();
 
     m_httpApi.start("127.0.0.1", 32456);
 }

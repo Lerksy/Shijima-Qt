@@ -40,6 +40,7 @@
 
 class QVBoxLayout;
 class QWidget;
+class QSystemTrayIcon;
 
 class ShijimaManager : public PlatformWidget<QMainWindow>
 {
@@ -93,6 +94,8 @@ private:
     void loadAllMascots();
     void refreshListWidget();
     void buildToolbar();
+    void buildTrayIcon();
+    void revealManager();
     void importAction();
     void deleteAction();
     void updateSandboxBackground();
@@ -131,6 +134,7 @@ private:
     std::map<int, ShijimaWidget *> m_mascotsById;
     QString m_mascotsPath;
     QListWidget m_listWidget;
+    QSystemTrayIcon *m_trayIcon = nullptr;
     ShijimaHttpApi m_httpApi;
     bool m_hasTickCallbacks;
     std::mutex m_mutex;

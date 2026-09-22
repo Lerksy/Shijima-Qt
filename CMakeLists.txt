@@ -61,6 +61,10 @@ qt_add_executable(shijima-qt
     ShimejiInspectorDialog.cc
     SoundEffectManager.cc
 )
+qt_add_resources(shijima-qt app_resources
+    PREFIX "/"
+    FILES com.pixelomer.ShijimaQt.png
+)
 target_include_directories(shijima-qt PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${SHIJIMA_GENERATED_DIR}")
 target_link_libraries(shijima-qt PRIVATE
     Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Concurrent
