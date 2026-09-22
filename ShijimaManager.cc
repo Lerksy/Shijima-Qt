@@ -67,15 +67,7 @@
 
 using namespace shijima;
 
-static QString colorToString(QColor const& color) {
-    auto rgb = color.toRgb();
-    std::array<char, 8> buf;
-    snprintf(&buf[0], buf.size(), "#%02hhX%02hhX%02hhX",
-        (uint8_t)rgb.red(), (uint8_t)rgb.green(),
-        (uint8_t)rgb.blue());
-    buf[buf.size()-1] = 0;
-    return QString { &buf[0] };
-}
+static QString colorToString(QColor const &color) { return color.name(QColor::HexRgb); }
 
 static ShijimaManager *m_defaultManager = nullptr;
 
@@ -690,10 +682,8 @@ ShijimaManager::ShijimaManager(QWidget *parent):
     }
     screenAdded(nullptr);
 
-    connect(qApp, &QGuiApplication::screenAdded,
-        this, &ShijimaManager::screenAdded);
-    connect(qApp, &QGuiApplication::screenRemoved,
-        this, &ShijimaManager::screenRemoved);
+    connect(qApp, &QGuiApplication::screenAdded, this, &ShijimaManager::screenAdded);
+    connect(qApp, &QGuiApplication::screenRemoved, this, &ShijimaManager::screenRemoved);
     connect(this, &ShijimaManager::runInMainThread, this, &ShijimaManager::onRunInMainThread, Qt::QueuedConnection);
 
     QString dataPath = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
