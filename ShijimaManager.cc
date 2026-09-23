@@ -44,6 +44,9 @@
 #include <shimejifinder/analyze.hpp>
 #include <QStandardPaths>
 #include "ForcedProgressDialog.hpp"
+#include "Widgets/MessageBox.h"
+#include "Widgets/SandboxWidget.h"
+
 #include <QAbstractItemModel>
 #include <QAction>
 #include <QCoreApplication>
@@ -229,13 +232,11 @@ void ShijimaManager::deleteAction() {
     if (selected.size() > 5) {
         msg += "\n... and " + QString::number(selected.size() - 5) + " other(s)";
     }
-    QMessageBox msgBox { this };
-    msgBox.setWindowTitle("Delete shimeji");
-    msgBox.setText(msg);
-    msgBox.setStandardButtons(QMessageBox::StandardButton::Yes |
-        QMessageBox::StandardButton::No);
-    msgBox.setIcon(QMessageBox::Icon::Question);
-    int ret = msgBox.exec();
+    auto msgBox = new MessageBox(msg, QMessageBox::StandardButton::Yes |
+        QMessageBox::StandardButton::No, this);
+    msgBox->setWindowTitle("Delete shimeji");
+    msgBox->setIcon(QMessageBox::Icon::Question);
+    int ret = msgBox->exec();
     if (ret == QMessageBox::StandardButton::Yes) {
         for (auto item : selected) {
             auto mascotData = m_loadedMascots[item->text()];
@@ -271,7 +272,7 @@ std::unique_lock<std::mutex> ShijimaManager::acquireLock() {
 }
 
 void ShijimaManager::updateSandboxBackground() {
-    if (m_sandboxWidget != nullptr) {
+    if (m_sandboxWidget) {
         m_sandboxWidget->setStyleSheet("#sandboxWindow { background-color: " +
             colorToString(m_sandboxBackground) + "; }");
     }
@@ -580,13 +581,11 @@ void ShijimaManager::showEvent(QShowEvent *event) {
     }
     else {
         if (m_loadedMascots.size() == 1) {
-            auto msgBox = new QMessageBox { this };
-            msgBox->setText("Welcome to Shijima! Get started by dragging and dropping a "
-                "shimeji archive to the manager window. You can also import archives "
-                "by selecting File > Import.");
-            msgBox->addButton(QMessageBox::StandardButton::Ok);
-            msgBox->setAttribute(Qt::WA_DeleteOnClose);
-            msgBox->show();
+            auto msgBox = new MessageBox("Welcome to Shijima! Get started by dragging and dropping a "
+                                         "shimeji archive to the manager window. You can also import archives "
+                                         "by selecting File > Import.",
+                                         QMessageBox::StandardButton::Ok, this);
+            msgBox->showDelayed();
         }
     }
 }
@@ -657,25 +656,21 @@ void ShijimaManager::setWindowedMode(bool isWindowed) {
         mascot->close();
         mascot->setParent(nullptr);
     }
+
+    if (m_sandboxWidget) {
+        m_sandboxWidget->close();
+    }
+
     if (isWindowed) {
-        QWidget *parent;
-        #if defined(_WIN32)
-            parent = nullptr;
-        #else
-            parent = this;
-        #endif
-        m_sandboxWidget = new QWidget { parent, Qt::Window };
-        m_sandboxWidget->setAttribute(Qt::WA_StyledBackground, true);
-        m_sandboxWidget->resize(640, 480);
-        m_sandboxWidget->setObjectName("sandboxWindow");
-        m_sandboxWidget->show();
+        QWidget *parent = nullptr;
+#ifndef _WIN32
+        parent = this;
+#endif
+
+        m_sandboxWidget = new SandboxWidget(parent);
         updateSandboxBackground();
     }
-    else {
-        m_sandboxWidget->close();
-        delete m_sandboxWidget;
-        m_sandboxWidget = nullptr;
-    }
+
     updateEnvironment();
     std::shared_ptr<shijima::mascot::environment> env;
     if (isWindowed) {
@@ -743,8 +738,8 @@ ShijimaManager::ShijimaManager(QWidget *parent):
     if (m_windowObserver.tickFrequency() > 0) {
         m_windowObserverTimer = startTimer(m_windowObserver.tickFrequency());
     }
-    setWindowFlags((windowFlags() | Qt::CustomizeWindowHint | Qt::ExpandedClientAreaHint |
-        Qt::WindowMinimizeButtonHint) & ~Qt::WindowMaximizeButtonHint);
+    setWindowFlags((windowFlags() | Qt::CustomizeWindowHint | Qt::ExpandedClientAreaHint)
+                   & ~Qt::WindowMaximizeButtonHint & ~Qt::WindowMinimizeButtonHint);
     setManagerVisible(true);
 
     connect(&m_listWidget, &QListWidget::itemDoubleClicked,
@@ -763,27 +758,20 @@ void ShijimaManager::itemDoubleClicked(QListWidgetItem *qItem) {
     spawn(qItem->text().toStdString());
 }
 
-void ShijimaManager::closeEvent(QCloseEvent *event) {
-    #if !defined(__APPLE__)
-    if (!m_allowClose) {
+void ShijimaManager::closeEvent(QCloseEvent *event)
+{
+    if (!canClose()) {
         event->ignore();
-        #if defined(_WIN32)
-        if (m_mascots.empty()) {
-            askClose();
-        }
-        else {
-            setManagerVisible(false);
-        }
-        #else
-        askClose();
-        #endif
+        setManagerVisible(false);
         return;
     }
+
     event->accept();
-    #else
-    event->ignore();
-    setManagerVisible(false);
-    #endif
+#if !defined(__APPLE__)
+    QMainWindow::closeEvent(event);
+#else
+    QCoreApplication::quit();
+#endif
 }
 
 void ShijimaManager::timerEvent(QTimerEvent *event) {
@@ -880,23 +868,22 @@ void ShijimaManager::updateEnvironment() {
     }
 }
 
-void ShijimaManager::askClose() {
-    setManagerVisible(true);
-    QMessageBox msgBox { this };
-    msgBox.setWindowTitle("Close Shijima-Qt");
-    msgBox.setIcon(QMessageBox::Icon::Question);
-    msgBox.setStandardButtons(QMessageBox::StandardButton::Yes |
-        QMessageBox::StandardButton::No);
-    msgBox.setText("Do you want to close Shijima-Qt?");
-    int ret = msgBox.exec();
-    if (ret == QMessageBox::Button::Yes) {
-        #if defined(__APPLE__)
-        QCoreApplication::quit();
-        #else
-        m_allowClose = true;
-        close();
-        #endif
+bool ShijimaManager::canClose()
+{
+    if (m_allowClose) {
+        return true;
     }
+    if (!m_mascots.empty()) {
+        return false;
+    }
+
+    setManagerVisible(true);
+    auto msgBox = new MessageBox("Do you want to close Shijima-Qt?",
+                                 QMessageBox::StandardButton::Yes | QMessageBox::StandardButton::No, this);
+    msgBox->setWindowTitle("Close Shijima-Qt");
+    m_allowClose = msgBox->exec() == QMessageBox::Button::Yes;
+
+    return m_allowClose;
 }
 
 void ShijimaManager::setManagerVisible(bool visible) {
@@ -927,7 +914,7 @@ void ShijimaManager::setManagerVisible(bool visible) {
         m_wasVisible = true;
     }
     else if (m_mascots.size() == 0) {
-        askClose();
+        canClose();
     }
     else {
         hide();

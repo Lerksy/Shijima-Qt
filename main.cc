@@ -19,13 +19,17 @@
 #include <QApplication>
 #include <QDir>
 #include <QStandardPaths>
-#include <QMessageBox>
+#include "Widgets/MessageBox.h"
 #include <libshijima/shijima/log.hpp>
 #include "Platform/Platform.hpp"
 #include "ShijimaManager.hpp"
 #include "AssetLoader.hpp"
 #include "cli.hpp"
+
 #include <httplib.h>
+#ifdef MessageBox
+#undef MessageBox
+#endif
 
 int main(int argc, char **argv) {
     if (argc > 1) {
@@ -49,12 +53,9 @@ int main(int argc, char **argv) {
         ShijimaManager::defaultManager()->show();
     }
     catch (std::exception &ex) {
-        QMessageBox *msg = new QMessageBox {};
-        msg->setText("Shijima-Qt failed to start. Reason: " +
-            QString::fromUtf8(ex.what()));
-        msg->setStandardButtons(QMessageBox::StandardButton::Close);
-        msg->setAttribute(Qt::WA_DeleteOnClose);
-        msg->show();
+        auto msgBox = new MessageBox(QString("Shijima-Qt failed to start. Reason: %1").arg(ex.what()),
+                                     QMessageBox::StandardButton::Close);
+        msgBox->show();
     }
     int ret = app.exec();
     ShijimaManager::finalize();

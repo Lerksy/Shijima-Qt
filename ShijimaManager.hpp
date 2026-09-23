@@ -36,8 +36,11 @@
 #include "Platform/ActiveWindowObserver.hpp"
 #include "ShijimaWidget.hpp"
 #include "ShijimaHttpApi.hpp"
+
+#include <QPointer>
 #include <condition_variable>
 
+class SandboxWidget;
 class QVBoxLayout;
 class QWidget;
 class QSystemTrayIcon;
@@ -64,6 +67,7 @@ public:
     std::map<int, ShijimaWidget *> const& mascotsById();
     ShijimaWidget *hitTest(QPoint const& screenPos);
     void onTickSync(std::function<void(ShijimaManager *)> callback);
+    void revealManager();
     ~ShijimaManager() override;
 
 signals:
@@ -79,7 +83,6 @@ protected:
 
 private:
     explicit ShijimaManager(QWidget *parent = nullptr);
-    static std::string imgRootForTemplatePath(std::string const& path);
 
     void onRunInMainThread(std::function<void()> callback);
 
@@ -88,14 +91,13 @@ private:
     void loadData(MascotData *data);
     void spawnClicked();
     void reloadMascot(QString const& name);
-    void askClose();
+    bool canClose();
     void itemDoubleClicked(QListWidgetItem *qItem);
     void reloadMascots(std::set<std::string> const& mascots);
     void loadAllMascots();
     void refreshListWidget();
     void buildToolbar();
     void buildTrayIcon();
-    void revealManager();
     void importAction();
     void deleteAction();
     void updateSandboxBackground();
@@ -111,7 +113,7 @@ private:
     QScreen *mascotScreen();
     QColor m_sandboxBackground;
     QAction *m_windowedModeAction;
-    QWidget *m_sandboxWidget;
+    QPointer<SandboxWidget> m_sandboxWidget;
     QSettings m_settings;
     Platform::ActiveWindow m_previousWindow;
     Platform::ActiveWindow m_currentWindow;

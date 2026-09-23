@@ -23,9 +23,11 @@
 ShijimaContextMenu::ShijimaContextMenu(ShijimaWidget *parent)
     : QMenu("Context menu", parent)
 {
-    QAction *action;
+    setAttribute(Qt::WA_DeleteOnClose);
+    setWindowFlags(windowFlags() | Qt::WindowStaysOnTopHint);
+    QAction *action = nullptr;
 
-    // Behaviors menu   
+    // Behaviors menu
     {
         std::vector<std::string> behaviors;
         auto &list = parent->m_mascot->initial_behavior_list();

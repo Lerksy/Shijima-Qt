@@ -46,7 +46,9 @@ include(cmake/Resources.cmake)
 add_subdirectory(libshijima)
 add_subdirectory(libshimejifinder)
 
-qt_add_executable(shijima-qt
+project(shijima-qt)
+
+qt_add_executable(${PROJECT_NAME}
     main.cc
     Asset.cc
     AssetLoader.cc
@@ -61,24 +63,27 @@ qt_add_executable(shijima-qt
     ShimejiInspectorDialog.cc
     SoundEffectManager.cc
 )
-qt_add_resources(shijima-qt app_resources
+
+add_subdirectory(Widgets)
+
+qt_add_resources(${PROJECT_NAME} app_resources
     PREFIX "/"
     FILES com.pixelomer.ShijimaQt.png
 )
-target_include_directories(shijima-qt PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${SHIJIMA_GENERATED_DIR}")
-target_link_libraries(shijima-qt PRIVATE
+target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${SHIJIMA_GENERATED_DIR}")
+target_link_libraries(${PROJECT_NAME} PRIVATE
     Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Concurrent
     shijima shimejifinder httplib::httplib Threads::Threads
 )
-target_compile_definitions(shijima-qt PRIVATE SHIJIMA_USE_QTMULTIMEDIA=$<BOOL:${SHIJIMA_USE_QTMULTIMEDIA}>)
+target_compile_definitions(${PROJECT_NAME} PRIVATE SHIJIMA_USE_QTMULTIMEDIA=$<BOOL:${SHIJIMA_USE_QTMULTIMEDIA}>)
 if(SHIJIMA_USE_QTMULTIMEDIA)
-    target_link_libraries(shijima-qt PRIVATE Qt6::Multimedia)
+    target_link_libraries(${PROJECT_NAME} PRIVATE Qt6::Multimedia)
 endif()
 if(MSVC)
-    target_compile_options(shijima-qt PRIVATE /W3 /utf-8 /permissive-)
-    target_compile_definitions(shijima-qt PRIVATE _CRT_SECURE_NO_WARNINGS NOMINMAX)
+    target_compile_options(${PROJECT_NAME} PRIVATE /W3 /utf-8 /permissive-)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE _CRT_SECURE_NO_WARNINGS NOMINMAX)
 else()
-    target_compile_options(shijima-qt PRIVATE -Wall)
+    target_compile_options(${PROJECT_NAME} PRIVATE -Wall)
 endif()
 
 set(mascot_files)
@@ -96,12 +101,12 @@ foreach(name IN ITEMS Shijima-Qt.LICENSE.txt duktape.LICENSE.txt duktape.AUTHORS
     list(APPEND license_files "${CMAKE_CURRENT_SOURCE_DIR}/licenses/${name}")
 endforeach()
 shijima_generate_resource("${SHIJIMA_GENERATED_DIR}/licenses_generated.hpp" licenses ${license_files})
-target_sources(shijima-qt PRIVATE "${SHIJIMA_GENERATED_DIR}/DefaultMascot.cc"
+target_sources(${PROJECT_NAME} PRIVATE "${SHIJIMA_GENERATED_DIR}/DefaultMascot.cc"
     "${SHIJIMA_GENERATED_DIR}/licenses_generated.hpp")
 
 include(cmake/Platform.cmake)
 
-install(TARGETS shijima-qt
+install(TARGETS ${PROJECT_NAME}
     RUNTIME_DEPENDENCY_SET shijima_runtime
     BUNDLE DESTINATION .
     RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"

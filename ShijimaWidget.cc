@@ -292,8 +292,8 @@ void ShijimaWidget::contextMenuClosed(QCloseEvent *event) {
 void ShijimaWidget::showContextMenu(QPoint const& pos) {
     m_contextMenuVisible = true;
     ShijimaContextMenu *menu = new ShijimaContextMenu(this);
-    menu->setAttribute(Qt::WA_DeleteOnClose);
     menu->popup(pos);
+    QTimer::singleShot(100, menu, &QMenu::raise);
 }
 
 ShijimaWidget::~ShijimaWidget() {
